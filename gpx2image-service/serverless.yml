@@ -1,0 +1,80 @@
+service: gpx2image-service
+
+provider:
+  name: aws
+  runtime: python3.8
+  stage: dev
+  region: us-west-2
+
+plugins:
+  - serverless-python-requirements
+
+layers:
+  gpx:
+    path: layers/gpx
+    name: gpx2image-service-gpx
+    compatibleRuntimes:
+      - python3.8
+    allowedAccounts:
+      - "*"
+  matplotlib:
+    path: layers/matplotlib
+    name: gpx2image-service-matplotlib
+    compatibleRuntimes:
+      - python3.8
+    allowedAccounts:
+      - "*"
+
+functions:
+  gpx2csv:
+    handler: gpx2csv.main
+    layers:
+      - { Ref: GpxLambdaLayer }
+    events:
+      - s3:
+          bucket: "gpx2image"
+          events:
+            - "s3:ObjectCreated:*"
+          rules:
+            - suffix: .gpx
+          existing: true
+  csv2image:
+    handler: csv2image.main
+    layers:
+      - { Ref: MatplotlibLambdaLayer }
+    events:
+      - s3:
+          bucket: "gpx2image"
+          events:
+            - "s3:ObjectCreated:*"
+          rules:
+            - suffix: .csv
+          existing: true
+
+resources:
+  Resources:
+    ### S3バケット設定
+    Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        # バケット名
+        BucketName: gpx2image
+
+    ### IAMの設定
+    S3IamPolicy:
+      Type: AWS::IAM::Policy
+      DependsOn: Bucket
+      Properties:
+        PolicyName: lambda-s3
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            ## バケットからデータを読み取り、追加、削除
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: arn:aws:s3:::gpx2image/*
+        Roles:
+          - Ref: IamRoleLambdaExecution

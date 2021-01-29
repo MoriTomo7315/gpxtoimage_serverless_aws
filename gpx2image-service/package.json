@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "sls-dev-tools": "^1.1.11"
+  },
+  "dependencies": {
+    "serverless-python-requirements": "^5.1.0"
+  }
+}
